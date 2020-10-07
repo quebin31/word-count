@@ -19,8 +19,8 @@ fn merge_maps(a: HashMap<String, usize>, b: &mut HashMap<String, usize>) -> Hash
     base
 }
 
-/// 800 MB
-const MAX_BUF_SIZE: usize = 800 * 1024 * 1024;
+/// 1 GB max buf size
+const MAX_BUF_SIZE: usize = 1024 * 1024 * 1024;
 
 /// Generates a new file with `size` (in bytes) of random words
 pub fn create(filename: impl AsRef<Path>, size: usize) -> Result<(), Error> {
@@ -56,7 +56,7 @@ pub fn create(filename: impl AsRef<Path>, size: usize) -> Result<(), Error> {
     Ok(())
 }
 
-/// Count words (naive version)
+/// Count words (parallel version)
 pub fn count(filename: impl AsRef<Path>) -> Result<HashMap<String, usize>, Error> {
     let file = File::open(filename)?;
     let size = file.metadata()?.len();
