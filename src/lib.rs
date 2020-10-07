@@ -1,5 +1,6 @@
 use anyhow::Error;
 use rand::{distributions::Uniform, thread_rng, Rng};
+use rayon::prelude::*;
 use words::Words;
 
 use std::{
@@ -9,6 +10,14 @@ use std::{
     path::Path,
 };
 
+fn merge_maps(a: HashMap<String, usize>, b: &mut HashMap<String, usize>) -> HashMap<String, usize> {
+    let mut base = a;
+    for (key, value) in b.drain() {
+        base.entry(key).and_modify(|c| *c += value).or_insert(value);
+    }
+
+    base
+}
 
 /// 800 MB
 const MAX_BUF_SIZE: usize = 800 * 1024 * 1024;
@@ -60,20 +69,22 @@ pub fn count(filename: impl AsRef<Path>) -> Result<HashMap<String, usize>, Error
     };
 
     let reader = BufReader::with_capacity(capacity, file);
-    let mut count = HashMap::new();
 
-    for word_bytes in reader.split(b' ') {
-        let word_bytes = word_bytes?;
-
-        let word = String::from_utf8(word_bytes)?;
-        let word = word.replace(',', "").replace('.', "");
-
-        if word.is_empty() {
-            continue;
-        }
-
-        count.entry(word).and_modify(|c| *c += 1).or_insert(1);
-    }
+    let count = reader
+        .split(b' ')
+        .par_bridge()
+        .map(|w| {
+            let w = w.unwrap();
+            String::from_utf8(w)
+                .unwrap()
+                .replace(',', "")
+                .replace('.', "")
+        })
+        .fold(HashMap::new, |mut map, w| {
+            map.entry(w).and_modify(|c| *c += 1).or_insert(1);
+            map
+        })
+        .reduce(HashMap::new, |a, mut b| merge_maps(a, &mut b));
 
     Ok(count)
 }
